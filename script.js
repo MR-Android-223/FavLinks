@@ -11,6 +11,7 @@ let secEmoji = '📁', secColor = '#c9a84c';
 let selectedGroupId = null;
 let currentSecId = null;
 let editingLinkId = null;
+let openGroupId = null;
 
 const EMOJIS = ['📁','🤖','🎨','🎬','🎵','📸','💻','🌐','🔗','📝','🎮','📊','🛒','💡','🔧','⭐','🚀','📱','🎯','💎'];
 const COLORS = ['#c9a84c','#f87171','#60a5fa','#34d399','#a78bfa','#f472b6','#fb923c','#2dd4bf','#facc15','#94a3b8'];
@@ -77,19 +78,10 @@ function loadAndRender() {
   const s = localStorage.getItem('vlt_data');
   if (s) {
     try { D = JSON.parse(s); } catch(e){}
-    D.groups.forEach(g => { g.isOpen = false; });
   } else {
-    D.groups.push({id:uid(), name:'أدوات الذكاء الاصطناعي', emoji:'🤖', color:'#c9a84c', isOpen:false, links:[
+    D.groups.push({id:uid(), name:'أدوات الذكاء الاصطناعي', emoji:'🤖', color:'#c9a84c', links:[
       {id:uid(), name:'Claude', url:'https://claude.ai'},
       {id:uid(), name:'ChatGPT', url:'https://chat.openai.com'},
-      {id:uid(), name:'Google Gemini', url:'https://gemini.google.com'},
-      {id:uid(), name:'Grok', url:'https://grok.com'},
-      {id:uid(), name:'Qwen Chat', url:'https://chat.qwenlm.ai'},
-      {id:uid(), name:'ElevenLabs', url:'https://elevenlabs.io'},
-      {id:uid(), name:'LMArena', url:'https://lmarena.ai'},
-    ]});
-    D.groups.push({id:uid(), name:'تحرير الصور', emoji:'🎨', color:'#f87171', isOpen:false, links:[
-      {id:uid(), name:'Vidnoz AI', url:'https://vidnoz.com'},
     ]});
     save();
   }
@@ -118,63 +110,85 @@ function render() {
   c.innerHTML = '';
   D.groups.forEach((g,gi) => {
     const div = document.createElement('div');
-    div.className = 'group-wrap' + (g.isOpen ? ' open' : '');
+    div.className = 'group-wrap';
     div.style.animationDelay = gi * 0.07 + 's';
-
-    const linksHTML = g.links.length === 0
-      ? `<div class="empty-group"><div class="e-icon">🔗</div>لا روابط — اضغط ＋ رابط</div>`
-      : g.links.map(l => {
-          const isSel = selected.has(l.id) ? 'selected' : '';
-          const isSrc = (swapSrc && swapSrc.type === 'link' && swapSrc.lid === l.id) ? 'swap-src' : '';
-          const fav   = getFav(l.url);
-          const init  = (l.name||'?')[0].toUpperCase();
-          return `
-            <div class="link-card ${isSel} ${isSrc}"
-                 data-gid="${g.id}" data-lid="${l.id}" data-url="${l.url}"
-                 onmousedown="handleTouchStart(event, this)"
-                 onmouseup="handleTouchEnd()"
-                 onmouseleave="handleTouchEnd()"
-                 ontouchstart="handleTouchStart(event, this)"
-                 ontouchend="handleTouchEnd()"
-                 ontouchmove="handleTouchMove()"
-                 oncontextmenu="handleContextMenu(event, this)"
-                 onclick="cardClick(event,this)">
-              <div class="link-icon-wrap">
-                <img src="${fav}" alt="${init}"
-                     onerror="if(!this.dataset.fb){this.dataset.fb='1'; this.src='https://icons.duckduckgo.com/ip3/'+new URL('${l.url}').hostname+'.ico';}else{this.parentNode.innerHTML='<span style=font-size:22px;font-weight:900;color:#333>${init}</span>'}">
-              </div>
-              <div class="sel-badge">✓</div>
-              <div class="link-label">${l.name || getDomain(l.url)}</div>
-            </div>`;
-        }).join('');
+    div.dataset.gid = g.id;
 
     const isGroupSrc = (swapSrc && swapSrc.type === 'group' && swapSrc.gid === g.id) ? 'swap-src' : '';
     const groupSwapBtn = swapMode ? `<button class="group-edit-btn" style="margin-left:6px; color:var(--gold2); background:rgba(201,168,76,0.15);" onclick="event.stopPropagation(); handleGroupSwap('${g.id}')">⇄</button>` : '';
 
     div.innerHTML = `
-      <div class="group-head ${isGroupSrc}" onclick="toggleGroup('${g.id}')">
+      <div class="group-head ${isGroupSrc}" onclick="openGroupView('${g.id}')">
         <div class="group-emoji" style="background:${g.color}18;border-color:${g.color}30;">${g.emoji}</div>
         <div class="group-name">${g.name}</div>
         <div class="group-count">${g.links.length}</div>
         ${groupSwapBtn}
         <button class="group-edit-btn" onclick="event.stopPropagation(); checkAuth(() => openSecCtx('${g.id}'))">⋯</button>
-        <span class="group-chevron">⌄</span>
-      </div>
-      <div class="links-grid">${linksHTML}</div>`;
+      </div>`;
     c.appendChild(div);
   });
+
+  if (openGroupId) {
+    renderGroupViewLinks(openGroupId);
+  }
 }
 
-function toggleGroup(gid) {
-  const g = D.groups.find(x=>x.id===gid);
-  if (g) { g.isOpen = !g.isOpen; save(); render(); }
+function openGroupView(gid) {
+  if (swapMode && swapSrc && swapSrc.type === 'group') {
+     toast('⚠ عم ترتب مجموعات، اختار زر التبديل', 'error-bare');
+     return;
+  }
+  openGroupId = gid;
+  const g = D.groups.find(x => x.id === gid);
+  if(!g) return;
+  document.getElementById('gv-title').innerHTML = `<span style="margin-left:8px; font-size:24px;">${g.emoji}</span> ${g.name}`;
+  renderGroupViewLinks(gid);
+
+  // نفتح النافذة مباشرة بدون تأخير لأن الغبش انحذف وصارت خفيفة جداً
+  openModal('group-view-modal');
+}
+
+function renderGroupViewLinks(gid) {
+  const g = D.groups.find(x => x.id === gid);
+  if(!g) return;
+  const container = document.getElementById('gv-links');
+  
+  if (g.links.length === 0) {
+     container.innerHTML = `<div class="empty-group"><div class="e-icon">🔗</div>لا يوجد روابط هنا</div>`;
+     return;
+  }
+
+  container.innerHTML = g.links.map(l => {
+      const isSel = selected.has(l.id) ? 'selected' : '';
+      const isSrc = (swapSrc && swapSrc.type === 'link' && swapSrc.lid === l.id) ? 'swap-src' : '';
+      const fav   = getFav(l.url);
+      const init  = (l.name||'?')[0].toUpperCase();
+      return `
+        <div class="link-card ${isSel} ${isSrc}"
+             data-gid="${g.id}" data-lid="${l.id}" data-url="${l.url}"
+             onmousedown="handleTouchStart(event, this)"
+             onmouseup="handleTouchEnd()"
+             onmouseleave="handleTouchEnd()"
+             ontouchstart="handleTouchStart(event, this)"
+             ontouchend="handleTouchEnd()"
+             ontouchmove="handleTouchMove()"
+             oncontextmenu="handleContextMenu(event, this)"
+             onclick="cardClick(event,this)">
+          <div class="link-icon-wrap">
+            <img src="${fav}" alt="${init}" loading="lazy"
+                 onerror="if(!this.dataset.fb){this.dataset.fb='1'; this.src='https://icons.duckduckgo.com/ip3/'+new URL('${l.url}').hostname+'.ico';}else{this.parentNode.innerHTML='<span style=font-size:22px;font-weight:900;color:#333>${init}</span>'}">
+          </div>
+          <div class="sel-badge">✓</div>
+          <div class="link-label">${l.name || getDomain(l.url)}</div>
+        </div>`;
+    }).join('');
 }
 
 function handleGroupSwap(gid) {
   if (!swapSrc) {
     swapSrc = { type: 'group', gid: gid };
     render();
-    toast('انقر على زر التبديل في المجموعة الأخرى', 'info');
+    toast('انقر على المكان الجديد للتبديل', 'info');
   } else {
     if (swapSrc.type === 'link') {
       toast('⚠ عم ترتب روابط، اختر رابط تاني', 'error-bare');
@@ -210,7 +224,7 @@ function handleTouchStart(e, el) {
       try { window.getSelection().removeAllRanges(); } catch(err) {}
       showLinkMenu(el);
     }
-  }, 250);
+  }, 500);
 }
 function handleTouchMove() {
   isDragging = true;
@@ -289,8 +303,15 @@ function cardClick(e, el) {
 
   const gid = el.dataset.gid, lid = el.dataset.lid, url = el.dataset.url;
   if (selMode) {
-    selected.has(lid) ? selected.delete(lid) : selected.add(lid);
-    updateSelCount(); render();
+    const isAdding = !selected.has(lid);
+    if (isAdding) {
+       selected.add(lid);
+       document.querySelectorAll(`.link-card[data-lid="${lid}"]`).forEach(c => c.classList.add('selected'));
+    } else {
+       selected.delete(lid);
+       document.querySelectorAll(`.link-card[data-lid="${lid}"]`).forEach(c => c.classList.remove('selected'));
+    }
+    updateSelCount();
     return;
   }
   if (swapMode) {
@@ -315,7 +336,6 @@ function cardClick(e, el) {
           save(); 
           toast('تم الترتيب ✅', 'success');
         }
-        g1.isOpen = g2.isOpen = true;
       }
       swapSrc = null; swapMode = false;
       document.getElementById('btn-swap').classList.remove('active-swap');
@@ -331,7 +351,14 @@ function cardClick(e, el) {
 /* ── modes ── */
 function toggleSwapMode() {
   swapMode = !swapMode; swapSrc=null;
-  if(selMode){ selMode=false; selected.clear(); document.getElementById('btn-select').classList.remove('active-select'); document.getElementById('action-bar').classList.remove('show'); }
+  if(selMode){
+      selMode=false;
+      selected.clear();
+      document.querySelectorAll('.link-card').forEach(c => c.classList.remove('selected'));
+      document.getElementById('btn-select').classList.remove('active-select');
+      document.getElementById('action-bar').classList.remove('show');
+      document.getElementById('select-banner').classList.remove('show');
+  }
   document.getElementById('btn-swap').classList.toggle('active-swap',swapMode);
   document.getElementById('swap-banner').classList.toggle('show',swapMode);
   document.getElementById('fab-row').classList.toggle('hidden',swapMode);
@@ -339,18 +366,27 @@ function toggleSwapMode() {
   render();
 }
 function toggleSelectMode() {
-  selMode = !selMode; selected.clear();
+  selMode = !selMode;
+  if(!selMode) {
+      selected.clear();
+      document.querySelectorAll('.link-card').forEach(c => c.classList.remove('selected'));
+  } else {
+      selected.clear();
+  }
   if(swapMode){ swapMode=false; swapSrc=null; document.getElementById('btn-swap').classList.remove('active-swap'); document.getElementById('swap-banner').classList.remove('show'); }
   document.getElementById('btn-select').classList.toggle('active-select',selMode);
   document.getElementById('select-banner').classList.toggle('show',selMode);
   document.getElementById('action-bar').classList.toggle('show',selMode);
   document.getElementById('fab-row').classList.toggle('hidden',selMode);
-  updateSelCount(); render();
+  updateSelCount();
 }
-function cancelSelect() { if(selMode) toggleSelectMode(); }
+function cancelSelect() { 
+  if(selMode) toggleSelectMode(); 
+}
 function selectAll() {
   D.groups.forEach(g=>{ g.links.forEach(l=>selected.add(l.id)); });
-  updateSelCount(); render();
+  updateSelCount();
+  document.querySelectorAll('.link-card').forEach(c => c.classList.add('selected'));
 }
 function updateSelCount() { document.getElementById('sel-count').textContent=selected.size+' محدد'; }
 
@@ -359,6 +395,7 @@ function deleteSelected() {
   if(!selected.size){ toast('⚠ لم تحدد شيئاً'); return; }
   confirm2('🗑','حذف الروابط المحددة',`هل تريد حذف ${selected.size} رابط؟`,'danger',()=>{
     D.groups.forEach(g=>{ g.links=g.links.filter(l=>!selected.has(l.id)); });
+    selected.clear();
     save(); cancelSelect(); render(); toast('تم الحذف ✅', 'success');
   });
 }
@@ -376,7 +413,8 @@ function openMoveModal() {
 function moveToGroup(tid) {
   const tg=D.groups.find(g=>g.id===tid); let moved=[];
   D.groups.forEach(g=>{ moved.push(...g.links.filter(l=>selected.has(l.id))); g.links=g.links.filter(l=>!selected.has(l.id)); });
-  tg.links.push(...moved); tg.isOpen=true;
+  tg.links.push(...moved);
+  selected.clear();
   save(); cancelSelect(); render(); toast('تم النقل ✅', 'success');
 }
 
@@ -438,7 +476,6 @@ function saveLink() {
       linkObj.name = name || getDomain(url);
       linkObj.url = url;
       newG.links.push(linkObj);
-      newG.isOpen = true;
     } else if (linkObj) {
       linkObj.name = name || getDomain(url);
       linkObj.url = url;
@@ -446,7 +483,6 @@ function saveLink() {
   } else {
     const g=D.groups.find(x=>x.id===selectedGroupId);
     g.links.push({id:uid(), name:name||getDomain(url), url});
-    g.isOpen=true;
   }
   
   save(); closeModal('link-modal'); render(); toast('تم الحفظ ✅', 'success');
@@ -500,7 +536,7 @@ function renderColorPicker() {
 function saveSection() {
   const n=document.getElementById('inp-sec-name').value.trim();
   if(!n){ toast('⚠ أدخل اسم القسم'); return; }
-  const g={id:uid(), name:n, emoji:secEmoji, color:secColor, isOpen:true, links:[]};
+  const g={id:uid(), name:n, emoji:secEmoji, color:secColor, links:[]};
   D.groups.push(g);
   save(); closeModal('section-modal'); render(); toast('تم إنشاء القسم ✅', 'success');
   if(addLinkThenSec){ selectedGroupId=g.id; renderGroupChips(); openModal('link-modal'); }
@@ -518,6 +554,7 @@ function askDeleteSection(gid) {
   const g=D.groups.find(x=>x.id===gid);
   confirm2('🗑','حذف القسم',`هل تريد حذف "${g.name}"؟\nالروابط لن تُحذف.`,'danger',()=>{
     D.groups=D.groups.filter(x=>x.id!==gid);
+    if(openGroupId === gid) closeModal('group-view-modal');
     save(); render(); toast('تم الحذف ✅', 'success');
   });
 }
@@ -576,7 +613,7 @@ function importData(e) {
   r.onload=ev=>{
     try {
       const d=JSON.parse(ev.target.result);
-      if(d.groups){ D=d; D.groups.forEach(g=>{ g.isOpen=false; }); save(); render(); toast('تم الاستيراد ✅', 'success'); }
+      if(d.groups){ D=d; save(); render(); toast('تم الاستيراد ✅', 'success'); }
       else toast('⚠ ملف غير صالح');
     } catch { toast('⚠ خطأ في القراءة'); }
   };
@@ -589,10 +626,39 @@ function askClearData() {
   });
 }
 
-/* ── modal helpers ── */
-function openModal(id)  { document.getElementById(id).classList.add('show'); }
-function closeModal(id) { document.getElementById(id).classList.remove('show'); }
-function overlayClose(e,id) { if(e.target===e.currentTarget) closeModal(id); }
+/* ── modal helpers و زر الرجوع ── */
+function openModal(id) {
+  const el = document.getElementById(id);
+  if (!el.classList.contains('show')) {
+    el.classList.add('show');
+    history.pushState({ modalId: id }, null, window.location.href);
+  }
+}
+
+function closeModal(id, fromHistory = false) {
+  const el = document.getElementById(id);
+  if (el.classList.contains('show')) {
+    el.classList.remove('show');
+    if (id === 'group-view-modal') openGroupId = null;
+    if (!fromHistory && history.state && history.state.modalId === id) {
+      history.back();
+    }
+  }
+}
+
+function overlayClose(e,id) { 
+  if(e.target===e.currentTarget) closeModal(id); 
+}
+
+window.addEventListener('popstate', (e) => {
+  const activeModals = document.querySelectorAll('.overlay.show');
+  if (activeModals.length > 0) {
+    activeModals.forEach(m => {
+      m.classList.remove('show');
+      if (m.id === 'group-view-modal') openGroupId = null;
+    });
+  }
+});
 
 function confirm2(icon,title,msg,type,cb) {
   document.getElementById('conf-icon').textContent=icon;

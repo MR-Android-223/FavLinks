@@ -2,8 +2,14 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Vault — مفضلتي</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Fav Links</title>
+
+<link rel="icon" type="image/png" href="icon.png">
+<link rel="apple-touch-icon" href="icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
@@ -15,7 +21,7 @@
 
 <header class="header">
   <div class="header-inner">
-    <div class="logo">Vault <span>/ مفضلتي</span></div>
+    <div class="logo">Fav <span>Links</span></div>
 
     <button class="hbtn" id="btn-swap" onclick="checkAuth(toggleSwapMode)" title="ترتيب">⇄</button>
     <button class="hbtn" id="btn-select" onclick="checkAuth(toggleSelectMode)" title="تحديد">✓</button>
@@ -71,13 +77,27 @@
 
 <div class="toast" id="toast"></div>
 
-<div class="overlay center" id="auth-modal" style="z-index: 1000;">
+<div class="overlay center" id="auth-modal">
   <div class="modal auth-modal-box">
     <div class="lock-title" style="margin-bottom:20px;">إجراء محمي</div>
     <input type="password" id="auth-input" class="lock-input" placeholder="• • • • • •"
            onkeydown="if(event.key==='Enter')submitAuth()">
     <button class="lock-btn" onclick="submitAuth()">تأكيد</button>
     <button class="cbtn cbtn-cancel" style="margin-top:10px; width:100%" onclick="cancelAuth()">إلغاء</button>
+  </div>
+</div>
+
+<div class="overlay center" id="group-view-modal" onclick="overlayClose(event,'group-view-modal')">
+  <div class="modal" style="display:flex; flex-direction:column; height:80vh; max-height:80vh; padding:24px 20px 0px;">
+    <div class="modal-title" style="margin-bottom:15px; flex-shrink:0;">
+      <span id="gv-title"></span>
+      <button class="mclose" onclick="closeModal('group-view-modal')">✕</button>
+    </div>
+    <div id="gv-links" class="links-grid" style="overflow-x:hidden; overflow-y:auto; padding:5px 4px 10px; flex-grow:1; width:100%;">
+      </div>
+    <div style="flex-shrink:0; margin-top:10px; padding-bottom:65px;">
+      <button class="cbtn cbtn-cancel" style="width:100%;" onclick="closeModal('group-view-modal')">إغلاق</button>
+    </div>
   </div>
 </div>
 
