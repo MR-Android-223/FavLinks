@@ -1,16 +1,16 @@
 /* ── state ── */
-let D = { groups: [] };          // main data
-let pwd = null;                   // hashed password
-let isUnlocked = false;           // session unlock state
-let authCallback = null;          // pending action after auth
+let D = { groups: [] };
+let pwd = null;
+let isUnlocked = false;
+let authCallback = null;
 let swapMode = false, swapSrc = null;
 let selMode = false, selected = new Set();
 let confirmCb = null;
-let addLinkThenSec = false;       // open link modal after creating section
+let addLinkThenSec = false;
 let secEmoji = '📁', secColor = '#c9a84c';
 let selectedGroupId = null;
-let currentSecId = null;          // for section context menu
-let editingLinkId = null;         // for edit link
+let currentSecId = null;
+let editingLinkId = null;
 
 const EMOJIS = ['📁','🤖','🎨','🎬','🎵','📸','💻','🌐','🔗','📝','🎮','📊','🛒','💡','🔧','⭐','🚀','📱','🎯','💎'];
 const COLORS = ['#c9a84c','#f87171','#60a5fa','#34d399','#a78bfa','#f472b6','#fb923c','#2dd4bf','#facc15','#94a3b8'];
@@ -30,9 +30,9 @@ function checkAuth(callback) {
     return;
   }
   authCallback = callback;
-  document.getElementById('auth-err').textContent = '';
   document.getElementById('auth-input').value = '';
   openModal('auth-modal');
+  setTimeout(() => document.getElementById('auth-input').focus(), 50);
 }
 
 async function submitAuth() {
@@ -46,7 +46,7 @@ async function submitAuth() {
       authCallback = null;
     }
   } else {
-    document.getElementById('auth-err').textContent = 'كلمة المرور غير صحيحة';
+    toast('الكلمة غير صحيحة ❌', 'error-bare');
     document.getElementById('auth-input').value = '';
   }
 }
@@ -54,6 +54,16 @@ async function submitAuth() {
 function cancelAuth() {
   closeModal('auth-modal');
   authCallback = null;
+}
+
+function reqEditLink() {
+  closeModal('link-ctx-modal');
+  checkAuth(ctxEditLink);
+}
+
+function reqDeleteLink() {
+  closeModal('link-ctx-modal');
+  checkAuth(ctxDeleteLink);
 }
 
 /* ── init ── */
@@ -67,13 +77,19 @@ function loadAndRender() {
   const s = localStorage.getItem('vlt_data');
   if (s) {
     try { D = JSON.parse(s); } catch(e){}
-    D.groups.forEach(g => { if(g.isOpen===undefined) g.isOpen=false; });
+    D.groups.forEach(g => { g.isOpen = false; });
   } else {
-    D.groups.push({id:uid(), name:'أدوات الذكاء الاصطناعي', emoji:'🤖', color:'#c9a84c', isOpen:true, links:[
+    D.groups.push({id:uid(), name:'أدوات الذكاء الاصطناعي', emoji:'🤖', color:'#c9a84c', isOpen:false, links:[
       {id:uid(), name:'Claude', url:'https://claude.ai'},
       {id:uid(), name:'ChatGPT', url:'https://chat.openai.com'},
       {id:uid(), name:'Google Gemini', url:'https://gemini.google.com'},
       {id:uid(), name:'Grok', url:'https://grok.com'},
+      {id:uid(), name:'Qwen Chat', url:'https://chat.qwenlm.ai'},
+      {id:uid(), name:'ElevenLabs', url:'https://elevenlabs.io'},
+      {id:uid(), name:'LMArena', url:'https://lmarena.ai'},
+    ]});
+    D.groups.push({id:uid(), name:'تحرير الصور', emoji:'🎨', color:'#f87171', isOpen:false, links:[
+      {id:uid(), name:'Vidnoz AI', url:'https://vidnoz.com'},
     ]});
     save();
   }
@@ -84,8 +100,12 @@ function save() { localStorage.setItem('vlt_data', JSON.stringify(D)); }
 function uid()  { return Math.random().toString(36).slice(2,11); }
 
 function getFav(url) {
-  try { return `https://icons.duckduckgo.com/ip3/${new URL(url).hostname}.ico`; }
-  catch { return ''; }
+  try {
+    const domain = new URL(url).hostname;
+    return `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
+  } catch {
+    return '';
+  }
 }
 
 function getDomain(url) {
@@ -105,12 +125,11 @@ function render() {
       ? `<div class="empty-group"><div class="e-icon">🔗</div>لا روابط — اضغط ＋ رابط</div>`
       : g.links.map(l => {
           const isSel = selected.has(l.id) ? 'selected' : '';
-          const isSrc = (swapSrc && swapSrc.linkId === l.id) ? 'swap-src' : '';
-          const isTgt = (swapMode && !isSrc) ? 'swap-tgt' : '';
+          const isSrc = (swapSrc && swapSrc.type === 'link' && swapSrc.lid === l.id) ? 'swap-src' : '';
           const fav   = getFav(l.url);
           const init  = (l.name||'?')[0].toUpperCase();
           return `
-            <div class="link-card ${isSel} ${isSrc} ${isTgt}"
+            <div class="link-card ${isSel} ${isSrc}"
                  data-gid="${g.id}" data-lid="${l.id}" data-url="${l.url}"
                  onmousedown="handleTouchStart(event, this)"
                  onmouseup="handleTouchEnd()"
@@ -122,18 +141,22 @@ function render() {
                  onclick="cardClick(event,this)">
               <div class="link-icon-wrap">
                 <img src="${fav}" alt="${init}"
-                     onerror="this.parentNode.innerHTML='<span style=font-size:22px;font-weight:900;color:#333>${init}</span>'">
+                     onerror="if(!this.dataset.fb){this.dataset.fb='1'; this.src='https://icons.duckduckgo.com/ip3/'+new URL('${l.url}').hostname+'.ico';}else{this.parentNode.innerHTML='<span style=font-size:22px;font-weight:900;color:#333>${init}</span>'}">
               </div>
               <div class="sel-badge">✓</div>
               <div class="link-label">${l.name || getDomain(l.url)}</div>
             </div>`;
         }).join('');
 
+    const isGroupSrc = (swapSrc && swapSrc.type === 'group' && swapSrc.gid === g.id) ? 'swap-src' : '';
+    const groupSwapBtn = swapMode ? `<button class="group-edit-btn" style="margin-left:6px; color:var(--gold2); background:rgba(201,168,76,0.15);" onclick="event.stopPropagation(); handleGroupSwap('${g.id}')">⇄</button>` : '';
+
     div.innerHTML = `
-      <div class="group-head" onclick="toggleGroup('${g.id}')">
+      <div class="group-head ${isGroupSrc}" onclick="toggleGroup('${g.id}')">
         <div class="group-emoji" style="background:${g.color}18;border-color:${g.color}30;">${g.emoji}</div>
         <div class="group-name">${g.name}</div>
         <div class="group-count">${g.links.length}</div>
+        ${groupSwapBtn}
         <button class="group-edit-btn" onclick="event.stopPropagation(); checkAuth(() => openSecCtx('${g.id}'))">⋯</button>
         <span class="group-chevron">⌄</span>
       </div>
@@ -147,6 +170,35 @@ function toggleGroup(gid) {
   if (g) { g.isOpen = !g.isOpen; save(); render(); }
 }
 
+function handleGroupSwap(gid) {
+  if (!swapSrc) {
+    swapSrc = { type: 'group', gid: gid };
+    render();
+    toast('انقر على زر التبديل في المجموعة الأخرى', 'info');
+  } else {
+    if (swapSrc.type === 'link') {
+      toast('⚠ عم ترتب روابط، اختر رابط تاني', 'error-bare');
+      return;
+    }
+    if (swapSrc.type === 'group' && swapSrc.gid !== gid) {
+      const idx1 = D.groups.findIndex(gx => gx.id === swapSrc.gid);
+      const idx2 = D.groups.findIndex(gx => gx.id === gid);
+      if(idx1 > -1 && idx2 > -1) {
+        const temp = D.groups[idx1];
+        D.groups[idx1] = D.groups[idx2];
+        D.groups[idx2] = temp;
+        save();
+        toast('تم ترتيب المجموعات ✅', 'success');
+      }
+    }
+    swapSrc = null; swapMode = false;
+    document.getElementById('btn-swap').classList.remove('active-swap');
+    document.getElementById('swap-banner').classList.remove('show');
+    document.getElementById('fab-row').classList.remove('hidden');
+    render();
+  }
+}
+
 /* ── long press ── */
 let pressTimer;
 let isDragging = false;
@@ -155,9 +207,10 @@ function handleTouchStart(e, el) {
   isDragging = false;
   pressTimer = setTimeout(() => {
     if (!isDragging) {
-      checkAuth(() => showLinkMenu(el));
+      try { window.getSelection().removeAllRanges(); } catch(err) {}
+      showLinkMenu(el);
     }
-  }, 500);
+  }, 250);
 }
 function handleTouchMove() {
   isDragging = true;
@@ -168,7 +221,8 @@ function handleTouchEnd() {
 }
 function handleContextMenu(e, el) {
   e.preventDefault();
-  checkAuth(() => showLinkMenu(el));
+  try { window.getSelection().removeAllRanges(); } catch(err) {}
+  showLinkMenu(el);
 }
 
 function showLinkMenu(el) {
@@ -195,7 +249,7 @@ function ctxOpenLink() {
 function ctxCopyLink() {
   const url = document.getElementById('link-ctx-modal').dataset.url;
   navigator.clipboard.writeText(url);
-  toast('✓ تم النسخ');
+  toast('تم النسخ ✅', 'success');
   closeModal('link-ctx-modal');
 }
 
@@ -214,19 +268,17 @@ function ctxEditLink() {
   renderGroupChips();
 
   document.getElementById('link-modal-title').textContent = '✏️ تعديل رابط';
-  closeModal('link-ctx-modal');
   openModal('link-modal');
 }
 
 function ctxDeleteLink() {
   const lid = document.getElementById('link-ctx-modal').dataset.lid;
   const gid = document.getElementById('link-ctx-modal').dataset.gid;
-  closeModal('link-ctx-modal');
 
   confirm2('🗑', 'حذف الرابط', 'هل تريد فعلاً حذف هذا الرابط؟', 'danger', () => {
     const g = D.groups.find(x => x.id === gid);
     g.links = g.links.filter(x => x.id !== lid);
-    save(); render(); toast('✓ تم الحذف');
+    save(); render(); toast('تم الحذف ✅', 'success');
   });
 }
 
@@ -242,16 +294,30 @@ function cardClick(e, el) {
     return;
   }
   if (swapMode) {
-    if (!swapSrc) { swapSrc = {gid,lid}; render(); toast('انقر على الموضع الجديد'); }
-    else {
-      if (swapSrc.lid !== lid) {
-        const g1=D.groups.find(g=>g.id===swapSrc.gid), g2=D.groups.find(g=>g.id===gid);
-        const i1=g1.links.findIndex(l=>l.id===swapSrc.lid), i2=g2.links.findIndex(l=>l.id===lid);
-        if(i1>-1&&i2>-1){ const t=g1.links[i1]; g1.links[i1]=g2.links[i2]; g2.links[i2]=t; save(); }
-        g1.isOpen=g2.isOpen=true;
-        toast('✓ تم التبديل');
+    if (!swapSrc) { 
+      swapSrc = {type: 'link', gid, lid}; 
+      render(); 
+      toast('انقر على المكان الجديد للتبديل', 'info'); 
+    } else {
+      if (swapSrc.type === 'group') {
+        toast('⚠ عم ترتب مجموعات، اختار زر التبديل', 'error-bare');
+        return;
       }
-      swapSrc=null; swapMode=false;
+      if (swapSrc.type === 'link' && swapSrc.lid !== lid) {
+        const g1 = D.groups.find(gx=>gx.id===swapSrc.gid);
+        const g2 = D.groups.find(gx=>gx.id===gid);
+        const i1 = g1.links.findIndex(lx=>lx.id===swapSrc.lid);
+        const i2 = g2.links.findIndex(lx=>lx.id===lid);
+        if(i1 > -1 && i2 > -1){ 
+          const t = g1.links[i1]; 
+          g1.links[i1] = g2.links[i2]; 
+          g2.links[i2] = t; 
+          save(); 
+          toast('تم الترتيب ✅', 'success');
+        }
+        g1.isOpen = g2.isOpen = true;
+      }
+      swapSrc = null; swapMode = false;
       document.getElementById('btn-swap').classList.remove('active-swap');
       document.getElementById('swap-banner').classList.remove('show');
       document.getElementById('fab-row').classList.remove('hidden');
@@ -269,7 +335,7 @@ function toggleSwapMode() {
   document.getElementById('btn-swap').classList.toggle('active-swap',swapMode);
   document.getElementById('swap-banner').classList.toggle('show',swapMode);
   document.getElementById('fab-row').classList.toggle('hidden',swapMode);
-  if(swapMode){ D.groups.forEach(g=>g.isOpen=true); toast('وضع الترتيب — انقر على رابطين لتبديلهما'); }
+  if(swapMode){ toast('وضع الترتيب مفعل'); }
   render();
 }
 function toggleSelectMode() {
@@ -279,12 +345,11 @@ function toggleSelectMode() {
   document.getElementById('select-banner').classList.toggle('show',selMode);
   document.getElementById('action-bar').classList.toggle('show',selMode);
   document.getElementById('fab-row').classList.toggle('hidden',selMode);
-  if(selMode){ D.groups.forEach(g=>g.isOpen=true); }
   updateSelCount(); render();
 }
 function cancelSelect() { if(selMode) toggleSelectMode(); }
 function selectAll() {
-  D.groups.forEach(g=>{ g.isOpen=true; g.links.forEach(l=>selected.add(l.id)); });
+  D.groups.forEach(g=>{ g.links.forEach(l=>selected.add(l.id)); });
   updateSelCount(); render();
 }
 function updateSelCount() { document.getElementById('sel-count').textContent=selected.size+' محدد'; }
@@ -294,7 +359,7 @@ function deleteSelected() {
   if(!selected.size){ toast('⚠ لم تحدد شيئاً'); return; }
   confirm2('🗑','حذف الروابط المحددة',`هل تريد حذف ${selected.size} رابط؟`,'danger',()=>{
     D.groups.forEach(g=>{ g.links=g.links.filter(l=>!selected.has(l.id)); });
-    save(); cancelSelect(); render(); toast('✓ تم الحذف');
+    save(); cancelSelect(); render(); toast('تم الحذف ✅', 'success');
   });
 }
 function openMoveModal() {
@@ -312,7 +377,7 @@ function moveToGroup(tid) {
   const tg=D.groups.find(g=>g.id===tid); let moved=[];
   D.groups.forEach(g=>{ moved.push(...g.links.filter(l=>selected.has(l.id))); g.links=g.links.filter(l=>!selected.has(l.id)); });
   tg.links.push(...moved); tg.isOpen=true;
-  save(); cancelSelect(); render(); toast('✓ تم النقل');
+  save(); cancelSelect(); render(); toast('تم النقل ✅', 'success');
 }
 
 /* ── add / edit link ── */
@@ -384,7 +449,7 @@ function saveLink() {
     g.isOpen=true;
   }
   
-  save(); closeModal('link-modal'); render(); toast('✓ تم الحفظ');
+  save(); closeModal('link-modal'); render(); toast('تم الحفظ ✅', 'success');
 }
 
 /* ── add / edit section ── */
@@ -413,7 +478,7 @@ function updateSection(gid) {
   const n=document.getElementById('inp-sec-name').value.trim();
   if(!n){ toast('⚠ أدخل الاسم'); return; }
   g.name=n; g.emoji=secEmoji; g.color=secColor;
-  save(); closeModal('section-modal'); render(); toast('✓ تم التحديث');
+  save(); closeModal('section-modal'); render(); toast('تم التحديث ✅', 'success');
 }
 function renderEmojiPicker() {
   const ep=document.getElementById('emoji-picker'); ep.innerHTML='';
@@ -437,7 +502,7 @@ function saveSection() {
   if(!n){ toast('⚠ أدخل اسم القسم'); return; }
   const g={id:uid(), name:n, emoji:secEmoji, color:secColor, isOpen:true, links:[]};
   D.groups.push(g);
-  save(); closeModal('section-modal'); render(); toast('✓ تم إنشاء القسم');
+  save(); closeModal('section-modal'); render(); toast('تم إنشاء القسم ✅', 'success');
   if(addLinkThenSec){ selectedGroupId=g.id; renderGroupChips(); openModal('link-modal'); }
 }
 
@@ -453,7 +518,7 @@ function askDeleteSection(gid) {
   const g=D.groups.find(x=>x.id===gid);
   confirm2('🗑','حذف القسم',`هل تريد حذف "${g.name}"؟\nالروابط لن تُحذف.`,'danger',()=>{
     D.groups=D.groups.filter(x=>x.id!==gid);
-    save(); render(); toast('✓ تم حذف القسم');
+    save(); render(); toast('تم الحذف ✅', 'success');
   });
 }
 
@@ -487,7 +552,7 @@ async function savePassword() {
   pwd = await hashString(newV);
   localStorage.setItem('vlt_pw',pwd);
   isUnlocked = true;
-  closeModal('pass-modal'); updatePwdUI(); toast('✓ تم تعيين كلمة المرور');
+  closeModal('pass-modal'); updatePwdUI(); toast('تم التعيين ✅', 'success');
 }
 async function removePassword() {
   const oldV=document.getElementById('inp-old-pass').value;
@@ -495,7 +560,7 @@ async function removePassword() {
   if(oldHash !== pwd){ toast('⚠ كلمة المرور الحالية خاطئة'); return; }
   pwd=null; localStorage.removeItem('vlt_pw');
   isUnlocked = false;
-  closeModal('pass-modal'); updatePwdUI(); toast('✓ تم إزالة كلمة المرور');
+  closeModal('pass-modal'); updatePwdUI(); toast('تم الإزالة ✅', 'success');
 }
 
 /* ── import / export ── */
@@ -503,7 +568,7 @@ function exportData() {
   closeDD();
   const blob=new Blob([JSON.stringify(D,null,2)],{type:'application/json'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
-  a.download='vault_backup.json'; a.click(); toast('✓ تم التصدير');
+  a.download='vault_backup.json'; a.click(); toast('تم التصدير ✅', 'success');
 }
 function importData(e) {
   const f=e.target.files[0]; if(!f) return;
@@ -511,7 +576,7 @@ function importData(e) {
   r.onload=ev=>{
     try {
       const d=JSON.parse(ev.target.result);
-      if(d.groups){ D=d; D.groups.forEach(g=>{if(g.isOpen===undefined)g.isOpen=false;}); save(); render(); toast('✓ تم الاستيراد'); }
+      if(d.groups){ D=d; D.groups.forEach(g=>{ g.isOpen=false; }); save(); render(); toast('تم الاستيراد ✅', 'success'); }
       else toast('⚠ ملف غير صالح');
     } catch { toast('⚠ خطأ في القراءة'); }
   };
@@ -520,7 +585,7 @@ function importData(e) {
 function askClearData() {
   closeDD();
   confirm2('⚠️','حذف جميع البيانات','هذا الإجراء نهائي ولا يمكن التراجع عنه!','danger',()=>{
-    D={groups:[]}; save(); render(); toast('✓ تم حذف جميع البيانات');
+    D={groups:[]}; save(); render(); toast('تم الحذف ✅', 'success');
   });
 }
 
@@ -553,7 +618,14 @@ document.addEventListener('click', e=>{
 
 /* toast */
 let toastTimer;
-function toast(msg) {
-  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
-  clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'),2600);
+function toast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  t.innerHTML = msg;
+  t.className = 'toast';
+  if (type === 'error-bare') {
+    t.classList.add('toast-bare');
+  }
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
 }

@@ -36,6 +36,19 @@ body {
   color:var(--text);
   min-height:100vh;
   overflow-x:hidden;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+input, textarea {
+  -webkit-user-select: auto;
+  -khtml-user-select: auto;
+  -moz-user-select: auto;
+  -ms-user-select: auto;
+  user-select: auto;
 }
 
 /* ─── AMBIENT BACKGROUND ───────────────────────────────── */
@@ -52,21 +65,7 @@ body {
 }
 
 /* ─── LOCK UI ELEMENTS ──────────────────────────────────────── */
-.lock-orb {
-  width:90px; height:90px; border-radius:50%;
-  background:linear-gradient(135deg, var(--s3), var(--s4));
-  border:1px solid var(--border2);
-  display:flex; align-items:center; justify-content:center;
-  font-size:36px; margin-bottom:28px;
-  box-shadow: 0 0 60px rgba(201,168,76,0.15), var(--sh);
-  animation: lockPulse 3s ease-in-out infinite;
-}
-@keyframes lockPulse {
-  0%,100% { box-shadow:0 0 40px rgba(201,168,76,0.1), var(--sh); }
-  50%      { box-shadow:0 0 80px rgba(201,168,76,0.25), var(--sh); }
-}
 .lock-title { font-size:22px; font-weight:800; color:var(--text); margin-bottom:8px; }
-.lock-subtitle { font-size:14px; color:var(--text2); margin-bottom:32px; }
 .lock-input {
   width:100%; max-width:280px;
   background:var(--s2); border:1px solid var(--border2);
@@ -86,7 +85,6 @@ body {
   transition:all 0.25s;
 }
 .lock-btn:hover { transform:translateY(-2px); box-shadow:0 8px 32px rgba(201,168,76,0.4); }
-.lock-err { color:var(--danger); font-size:13px; font-weight:600; margin-top:10px; height:18px; }
 
 /* ─── HEADER ───────────────────────────────────────────── */
 .header {
@@ -253,6 +251,10 @@ main {
   padding:15px 18px;
   cursor:pointer; user-select:none;
   transition:background 0.2s;
+}
+.group-head.swap-src {
+  background:rgba(201,168,76,0.15);
+  border-bottom: 1px dashed var(--gold);
 }
 .group-head:hover { background:rgba(255,255,255,0.025); }
 .group-emoji {
@@ -437,6 +439,14 @@ main {
 .overlay.center .modal {
   border-radius:24px; max-height:85vh; overflow-y:auto;
 }
+
+/* Fast loading for auth modal to remove lag */
+.auth-modal-box {
+  animation: none !important;
+  transition: none !important;
+  text-align: center;
+}
+
 @keyframes slideUp { from{transform:translateY(100%);opacity:0;} to{transform:none;opacity:1;} }
 
 /* modal drag handle */
@@ -585,16 +595,21 @@ main {
 
 /* toast */
 .toast {
-  position:fixed; top:80px; left:50%; transform:translateX(-50%) translateY(-10px);
+  position:fixed; bottom:40px; top:auto; left:50%; transform:translateX(-50%) translateY(20px);
   background:var(--s3); border:1px solid var(--border2);
   border-radius:50px; padding:10px 20px;
-  font-size:13px; font-weight:700; color:var(--text);
-  z-index:1000; box-shadow:var(--sh);
+  font-size:14px; font-weight:700; color:var(--text);
+  z-index:9999; box-shadow:var(--sh);
   opacity:0; pointer-events:none;
   transition:opacity 0.3s, transform 0.3s;
   white-space:nowrap;
+  display: flex; align-items: center; gap: 8px;
 }
 .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+.toast.toast-bare {
+  background:transparent !important; border:none !important; box-shadow:none !important;
+  color:#f87171 !important; font-size:16px; font-weight:900;
+}
 
 /* scrollbar */
 ::-webkit-scrollbar { width:4px; height:4px; }
