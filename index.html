@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vault — مفضلتي</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="ambient"></div>
+<div class="grain"></div>
+
+<div id="lock-screen" style="display:none;">
+  <div class="lock-orb">🔐</div>
+  <div class="lock-title">التطبيق مقفل</div>
+  <div class="lock-subtitle">أدخل كلمة المرور للمتابعة</div>
+  <input type="password" id="unlock-input" class="lock-input" placeholder="• • • • • •"
+         onkeydown="if(event.key==='Enter')unlockApp()">
+  <button class="lock-btn" onclick="unlockApp()">دخول</button>
+  <div class="lock-err" id="lock-err"></div>
+</div>
+
+<header class="header">
+  <div class="header-inner">
+    <div class="logo">Vault <span>/ مفضلتي</span></div>
+
+    <button class="hbtn" id="btn-swap" onclick="toggleSwapMode()" title="ترتيب">⇄</button>
+    <button class="hbtn" id="btn-select" onclick="toggleSelectMode()" title="تحديد">✓</button>
+
+    <div class="dropdown">
+      <button class="hbtn" onclick="toggleDD(event)"><i class="fas fa-ellipsis-v"></i></button>
+      <div class="ddmenu" id="ddmenu">
+        <div class="dditem" onclick="exportData()">
+          <i class="fas fa-file-export"></i> <span>تصدير البيانات</span>
+        </div>
+        <div class="dditem" onclick="document.getElementById('file-imp').click()">
+          <i class="fas fa-file-import"></i> <span>استيراد البيانات</span>
+          <input type="file" id="file-imp" accept=".json" style="display:none" onchange="importData(event)">
+        </div>
+        <div class="ddsep"></div>
+        <div class="dditem" id="dd-pass" onclick="openPassModal()">
+          <i class="fas fa-key"></i> <span id="dd-pass-label">تعيين كلمة مرور</span>
+        </div>
+        <div class="ddsep"></div>
+        <div class="dditem danger" onclick="askClearData()">
+          <i class="fas fa-trash-alt"></i> <span>حذف كل البيانات</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main id="main-content">
+  <div class="mode-banner swap-banner" id="swap-banner">
+    ✦ &nbsp; وضع الترتيب — انقر على رابط ثم انقر على مكانه الجديد
+  </div>
+  <div class="mode-banner select-banner" id="select-banner">
+    ✓ &nbsp; وضع التحديد — انقر على الروابط لتحديدها
+  </div>
+  <div id="groups-container"></div>
+</main>
+
+<div class="fab-row" id="fab-row">
+  <button class="fab fab-sec" onclick="openAddSection()">＋ قسم</button>
+  <button class="fab fab-main" onclick="openAddLink()">＋ رابط</button>
+</div>
+
+<div class="action-bar" id="action-bar">
+  <span class="sel-count" id="sel-count">0 محدد</span>
+  <button class="abtn" onclick="selectAll()">⊞ الكل</button>
+  <div class="ab-sep"></div>
+  <button class="abtn" onclick="openMoveModal()">↗ نقل</button>
+  <div class="ab-sep"></div>
+  <button class="abtn danger" onclick="deleteSelected()">✕ حذف</button>
+  <div class="ab-sep"></div>
+  <button class="abtn" onclick="cancelSelect()">✗ إلغاء</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="overlay" id="link-modal" onclick="overlayClose(event,'link-modal')">
+  <div class="modal">
+    <div class="modal-title">
+      <span id="link-modal-title">➕ إضافة رابط</span>
+      <button class="mclose" onclick="closeModal('link-modal')">✕</button>
+    </div>
+
+    <label class="flabel">الرابط</label>
+    <input type="url" class="finput" id="inp-url" placeholder="https://example.com"
+           oninput="previewURL(this.value)">
+
+    <div class="url-preview" id="url-prev">
+      <div class="uprev-icon"><img id="uprev-img" src="" alt=""></div>
+      <div>
+        <div class="uprev-domain" id="uprev-domain"></div>
+        <div class="uprev-full" id="uprev-full"></div>
+      </div>
+    </div>
+
+    <label class="flabel">الاسم</label>
+    <input type="text" class="finput" id="inp-name" placeholder="اسم الرابط...">
+
+    <label class="flabel">القسم</label>
+    <div class="group-chips" id="group-chips-list"></div>
+    <button class="gchip new-chip" onclick="openAddSection(true)" style="width:100%;margin-bottom:16px;">
+      ＋ قسم جديد
+    </button>
+
+    <button class="msave" onclick="saveLink()">حفظ الرابط</button>
+  </div>
+</div>
+
+<div class="overlay" id="section-modal" onclick="overlayClose(event,'section-modal')">
+  <div class="modal">
+    <div class="modal-title">
+      <span id="sec-modal-title">📁 قسم جديد</span>
+      <button class="mclose" onclick="closeModal('section-modal')">✕</button>
+    </div>
+
+    <label class="flabel">اسم القسم</label>
+    <input type="text" class="finput" id="inp-sec-name" placeholder="مثال: أدوات الذكاء الاصطناعي">
+
+    <label class="flabel">أيقونة</label>
+    <div class="emoji-row" id="emoji-picker"></div>
+
+    <label class="flabel">لون</label>
+    <div class="color-row" id="color-picker"></div>
+
+    <button class="msave" id="sec-save-btn" onclick="saveSection()">إنشاء القسم</button>
+  </div>
+</div>
+
+<div class="overlay center" id="move-modal" onclick="overlayClose(event,'move-modal')">
+  <div class="modal">
+    <div class="modal-title">
+      <span>📦 نقل إلى</span>
+      <button class="mclose" onclick="closeModal('move-modal')">✕</button>
+    </div>
+    <div class="mgroup-list" id="move-list"></div>
+  </div>
+</div>
+
+<div class="overlay" id="pass-modal" onclick="overlayClose(event,'pass-modal')">
+  <div class="modal">
+    <div class="modal-title">
+      <span id="pass-modal-title">🔑 كلمة المرور</span>
+      <button class="mclose" onclick="closeModal('pass-modal')">✕</button>
+    </div>
+    <div id="pass-form">
+      <div id="pass-old-wrap" style="display:none;">
+        <label class="flabel">كلمة المرور الحالية</label>
+        <input type="password" class="finput" id="inp-old-pass" placeholder="كلمة المرور الحالية">
+      </div>
+      <label class="flabel">كلمة المرور الجديدة</label>
+      <input type="password" class="finput" id="inp-new-pass" placeholder="• • • • • •">
+      <label class="flabel">التأكيد</label>
+      <input type="password" class="finput" id="inp-conf-pass" placeholder="• • • • • •">
+      <div id="pass-rm-wrap" style="display:none; margin-bottom:12px;">
+        <button class="pass-rm" onclick="removePassword()">🗑 إزالة كلمة المرور</button>
+      </div>
+      <button class="msave" onclick="savePassword()">حفظ</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay center" id="confirm-modal">
+  <div class="modal">
+    <div class="confirm-icon" id="conf-icon"></div>
+    <div class="confirm-title" id="conf-title"></div>
+    <div class="confirm-msg" id="conf-msg"></div>
+    <div class="confirm-btns">
+      <button class="cbtn cbtn-cancel" onclick="closeModal('confirm-modal')">إلغاء</button>
+      <button class="cbtn" id="conf-ok" onclick="runConfirm()">تأكيد</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay center" id="sec-ctx-modal" onclick="overlayClose(event,'sec-ctx-modal')">
+  <div class="modal">
+    <div class="modal-title">
+      <span id="sec-ctx-name">خيارات القسم</span>
+      <button class="mclose" onclick="closeModal('sec-ctx-modal')">✕</button>
+    </div>
+    <div class="mgroup-list">
+      <div class="mgroup-item" onclick="editSection(currentSecId)">
+        <span class="mg-e">✏️</span> تعديل القسم
+      </div>
+      <div class="mgroup-item" style="color:var(--danger); border-color:rgba(248,113,113,0.15);"
+           onclick="askDeleteSection(currentSecId)">
+        <span class="mg-e">🗑</span> حذف القسم
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
