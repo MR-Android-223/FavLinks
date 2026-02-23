@@ -1,6 +1,8 @@
 /* ── state ── */
 let D = { groups: [] };          // main data
 let pwd = null;                   // hashed password
+let isUnlocked = false;           // session unlock state
+let authCallback = null;          // pending action after auth
 let swapMode = false, swapSrc = null;
 let selMode = false, selected = new Set();
 let confirmCb = null;
@@ -8,20 +10,57 @@ let addLinkThenSec = false;       // open link modal after creating section
 let secEmoji = '📁', secColor = '#c9a84c';
 let selectedGroupId = null;
 let currentSecId = null;          // for section context menu
-let editingLinkId = null;         // for edit link (future)
+let editingLinkId = null;         // for edit link
 
 const EMOJIS = ['📁','🤖','🎨','🎬','🎵','📸','💻','🌐','🔗','📝','🎮','📊','🛒','💡','🔧','⭐','🚀','📱','🎯','💎'];
 const COLORS = ['#c9a84c','#f87171','#60a5fa','#34d399','#a78bfa','#f472b6','#fb923c','#2dd4bf','#facc15','#94a3b8'];
+
+/* ── crypto ── */
+async function hashString(str) {
+  const buffer = new TextEncoder().encode(str);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/* ── auth wrapper ── */
+function checkAuth(callback) {
+  if (!pwd || isUnlocked) {
+    callback();
+    return;
+  }
+  authCallback = callback;
+  document.getElementById('auth-err').textContent = '';
+  document.getElementById('auth-input').value = '';
+  openModal('auth-modal');
+}
+
+async function submitAuth() {
+  const v = document.getElementById('auth-input').value;
+  const hash = await hashString(v);
+  if (hash === pwd) {
+    isUnlocked = true;
+    closeModal('auth-modal');
+    if (authCallback) {
+      authCallback();
+      authCallback = null;
+    }
+  } else {
+    document.getElementById('auth-err').textContent = 'كلمة المرور غير صحيحة';
+    document.getElementById('auth-input').value = '';
+  }
+}
+
+function cancelAuth() {
+  closeModal('auth-modal');
+  authCallback = null;
+}
 
 /* ── init ── */
 window.onload = () => {
   pwd = localStorage.getItem('vlt_pw') || null;
   updatePwdUI();
-  if (pwd) {
-    document.getElementById('lock-screen').style.display = 'flex';
-  } else {
-    loadAndRender();
-  }
+  loadAndRender();
 };
 
 function loadAndRender() {
@@ -35,12 +74,6 @@ function loadAndRender() {
       {id:uid(), name:'ChatGPT', url:'https://chat.openai.com'},
       {id:uid(), name:'Google Gemini', url:'https://gemini.google.com'},
       {id:uid(), name:'Grok', url:'https://grok.com'},
-      {id:uid(), name:'Qwen Chat', url:'https://chat.qwenlm.ai'},
-      {id:uid(), name:'ElevenLabs', url:'https://elevenlabs.io'},
-      {id:uid(), name:'LMArena', url:'https://lmarena.ai'},
-    ]});
-    D.groups.push({id:uid(), name:'تحرير الصور', emoji:'🎨', color:'#f87171', isOpen:false, links:[
-      {id:uid(), name:'Vidnoz AI', url:'https://vidnoz.com'},
     ]});
     save();
   }
@@ -49,10 +82,12 @@ function loadAndRender() {
 
 function save() { localStorage.setItem('vlt_data', JSON.stringify(D)); }
 function uid()  { return Math.random().toString(36).slice(2,11); }
+
 function getFav(url) {
-  try { return `https://www.google.com/s2/favicons?domain=${new URL(url).hostname}&sz=128`; }
+  try { return `https://icons.duckduckgo.com/ip3/${new URL(url).hostname}.ico`; }
   catch { return ''; }
 }
+
 function getDomain(url) {
   try { return new URL(url).hostname.replace('www.',''); } catch { return url; }
 }
@@ -77,6 +112,13 @@ function render() {
           return `
             <div class="link-card ${isSel} ${isSrc} ${isTgt}"
                  data-gid="${g.id}" data-lid="${l.id}" data-url="${l.url}"
+                 onmousedown="handleTouchStart(event, this)"
+                 onmouseup="handleTouchEnd()"
+                 onmouseleave="handleTouchEnd()"
+                 ontouchstart="handleTouchStart(event, this)"
+                 ontouchend="handleTouchEnd()"
+                 ontouchmove="handleTouchMove()"
+                 oncontextmenu="handleContextMenu(event, this)"
                  onclick="cardClick(event,this)">
               <div class="link-icon-wrap">
                 <img src="${fav}" alt="${init}"
@@ -92,7 +134,7 @@ function render() {
         <div class="group-emoji" style="background:${g.color}18;border-color:${g.color}30;">${g.emoji}</div>
         <div class="group-name">${g.name}</div>
         <div class="group-count">${g.links.length}</div>
-        <button class="group-edit-btn" onclick="event.stopPropagation();openSecCtx('${g.id}')">⋯</button>
+        <button class="group-edit-btn" onclick="event.stopPropagation(); checkAuth(() => openSecCtx('${g.id}'))">⋯</button>
         <span class="group-chevron">⌄</span>
       </div>
       <div class="links-grid">${linksHTML}</div>`;
@@ -105,9 +147,94 @@ function toggleGroup(gid) {
   if (g) { g.isOpen = !g.isOpen; save(); render(); }
 }
 
+/* ── long press ── */
+let pressTimer;
+let isDragging = false;
+
+function handleTouchStart(e, el) {
+  isDragging = false;
+  pressTimer = setTimeout(() => {
+    if (!isDragging) {
+      checkAuth(() => showLinkMenu(el));
+    }
+  }, 500);
+}
+function handleTouchMove() {
+  isDragging = true;
+  clearTimeout(pressTimer);
+}
+function handleTouchEnd() {
+  clearTimeout(pressTimer);
+}
+function handleContextMenu(e, el) {
+  e.preventDefault();
+  checkAuth(() => showLinkMenu(el));
+}
+
+function showLinkMenu(el) {
+  const lid = el.dataset.lid;
+  const gid = el.dataset.gid;
+  const url = el.dataset.url;
+  const g = D.groups.find(x => x.id === gid);
+  const l = g.links.find(x => x.id === lid);
+
+  document.getElementById('link-ctx-name').textContent = l.name;
+  document.getElementById('link-ctx-modal').dataset.lid = lid;
+  document.getElementById('link-ctx-modal').dataset.gid = gid;
+  document.getElementById('link-ctx-modal').dataset.url = url;
+
+  openModal('link-ctx-modal');
+}
+
+function ctxOpenLink() {
+  const url = document.getElementById('link-ctx-modal').dataset.url;
+  window.open(url, '_blank');
+  closeModal('link-ctx-modal');
+}
+
+function ctxCopyLink() {
+  const url = document.getElementById('link-ctx-modal').dataset.url;
+  navigator.clipboard.writeText(url);
+  toast('✓ تم النسخ');
+  closeModal('link-ctx-modal');
+}
+
+function ctxEditLink() {
+  const lid = document.getElementById('link-ctx-modal').dataset.lid;
+  const gid = document.getElementById('link-ctx-modal').dataset.gid;
+  const g = D.groups.find(x => x.id === gid);
+  const l = g.links.find(x => x.id === lid);
+
+  editingLinkId = lid;
+  selectedGroupId = gid;
+
+  document.getElementById('inp-url').value = l.url;
+  document.getElementById('inp-name').value = l.name;
+  previewURL(l.url);
+  renderGroupChips();
+
+  document.getElementById('link-modal-title').textContent = '✏️ تعديل رابط';
+  closeModal('link-ctx-modal');
+  openModal('link-modal');
+}
+
+function ctxDeleteLink() {
+  const lid = document.getElementById('link-ctx-modal').dataset.lid;
+  const gid = document.getElementById('link-ctx-modal').dataset.gid;
+  closeModal('link-ctx-modal');
+
+  confirm2('🗑', 'حذف الرابط', 'هل تريد فعلاً حذف هذا الرابط؟', 'danger', () => {
+    const g = D.groups.find(x => x.id === gid);
+    g.links = g.links.filter(x => x.id !== lid);
+    save(); render(); toast('✓ تم الحذف');
+  });
+}
+
 /* ── card click ── */
 function cardClick(e, el) {
   e.stopPropagation();
+  if (isDragging) return;
+
   const gid = el.dataset.gid, lid = el.dataset.lid, url = el.dataset.url;
   if (selMode) {
     selected.has(lid) ? selected.delete(lid) : selected.add(lid);
@@ -188,7 +315,7 @@ function moveToGroup(tid) {
   save(); cancelSelect(); render(); toast('✓ تم النقل');
 }
 
-/* ── add link ── */
+/* ── add / edit link ── */
 function openAddLink() {
   editingLinkId=null;
   document.getElementById('inp-url').value='';
@@ -219,7 +346,7 @@ function previewURL(val) {
   try {
     const url=new URL(val.startsWith('http')?val:'https://'+val);
     const dom=url.hostname.replace('www.','');
-    document.getElementById('uprev-img').src=`https://www.google.com/s2/favicons?domain=${url.hostname}&sz=128`;
+    document.getElementById('uprev-img').src=getFav(val);
     document.getElementById('uprev-domain').textContent=dom;
     document.getElementById('uprev-full').textContent=url.href;
     prev.style.display='flex';
@@ -232,9 +359,32 @@ function saveLink() {
   if(!url){ toast('⚠ أدخل رابطاً'); return; }
   if(!url.startsWith('http')) url='https://'+url;
   if(!selectedGroupId){ toast('⚠ اختر قسماً'); return; }
-  const g=D.groups.find(x=>x.id===selectedGroupId);
-  g.links.push({id:uid(), name:name||getDomain(url), url});
-  g.isOpen=true; save(); closeModal('link-modal'); render(); toast('✓ تم إضافة الرابط');
+  
+  if (editingLinkId) {
+    let oldG = null;
+    let linkObj = null;
+    D.groups.forEach(gx => {
+      const lx = gx.links.find(x => x.id === editingLinkId);
+      if (lx) { oldG = gx; linkObj = lx; }
+    });
+    if (oldG && oldG.id !== selectedGroupId) {
+      oldG.links = oldG.links.filter(x => x.id !== editingLinkId);
+      const newG = D.groups.find(x => x.id === selectedGroupId);
+      linkObj.name = name || getDomain(url);
+      linkObj.url = url;
+      newG.links.push(linkObj);
+      newG.isOpen = true;
+    } else if (linkObj) {
+      linkObj.name = name || getDomain(url);
+      linkObj.url = url;
+    }
+  } else {
+    const g=D.groups.find(x=>x.id===selectedGroupId);
+    g.links.push({id:uid(), name:name||getDomain(url), url});
+    g.isOpen=true;
+  }
+  
+  save(); closeModal('link-modal'); render(); toast('✓ تم الحفظ');
 }
 
 /* ── add / edit section ── */
@@ -303,9 +453,6 @@ function askDeleteSection(gid) {
   const g=D.groups.find(x=>x.id===gid);
   confirm2('🗑','حذف القسم',`هل تريد حذف "${g.name}"؟\nالروابط لن تُحذف.`,'danger',()=>{
     D.groups=D.groups.filter(x=>x.id!==gid);
-    D.groups.forEach(g2=>{ /* links stay orphaned or you can move them */ });
-    // remove section-orphaned links too — optional behavior: keep them in first section
-    const orphans=D.links?.filter(l=>l.sectionId===gid)||[];
     save(); render(); toast('✓ تم حذف القسم');
   });
 }
@@ -324,29 +471,31 @@ function openPassModal() {
   document.getElementById('pass-modal-title').textContent = pwd ? '🔒 تغيير كلمة المرور' : '🔑 تعيين كلمة مرور';
   openModal('pass-modal');
 }
-function savePassword() {
+async function savePassword() {
   const oldV=document.getElementById('inp-old-pass').value;
   const newV=document.getElementById('inp-new-pass').value;
   const cfV=document.getElementById('inp-conf-pass').value;
-  if(pwd && btoa(oldV)!==pwd){ toast('⚠ كلمة المرور الحالية خاطئة'); return; }
+  
+  if(pwd){
+    const oldHash = await hashString(oldV);
+    if(oldHash !== pwd){ toast('⚠ كلمة المرور الحالية خاطئة'); return; }
+  }
+  
   if(newV.length<4){ toast('⚠ كلمة المرور قصيرة جداً'); return; }
   if(newV!==cfV){ toast('⚠ كلمتا المرور غير متطابقتتان'); return; }
-  pwd=btoa(newV); localStorage.setItem('vlt_pw',pwd);
+  
+  pwd = await hashString(newV);
+  localStorage.setItem('vlt_pw',pwd);
+  isUnlocked = true;
   closeModal('pass-modal'); updatePwdUI(); toast('✓ تم تعيين كلمة المرور');
 }
-function removePassword() {
+async function removePassword() {
   const oldV=document.getElementById('inp-old-pass').value;
-  if(btoa(oldV)!==pwd){ toast('⚠ كلمة المرور الحالية خاطئة'); return; }
+  const oldHash = await hashString(oldV);
+  if(oldHash !== pwd){ toast('⚠ كلمة المرور الحالية خاطئة'); return; }
   pwd=null; localStorage.removeItem('vlt_pw');
+  isUnlocked = false;
   closeModal('pass-modal'); updatePwdUI(); toast('✓ تم إزالة كلمة المرور');
-}
-function unlockApp() {
-  const v=document.getElementById('unlock-input').value;
-  const err=document.getElementById('lock-err');
-  if(btoa(v)===pwd){
-    document.getElementById('lock-screen').style.display='none';
-    err.textContent=''; loadAndRender();
-  } else { err.textContent='كلمة المرور غير صحيحة'; document.getElementById('unlock-input').value=''; }
 }
 
 /* ── import / export ── */
@@ -393,7 +542,10 @@ function confirm2(icon,title,msg,type,cb) {
 function runConfirm() { if(confirmCb){ confirmCb(); confirmCb=null; } closeModal('confirm-modal'); }
 
 /* dropdown */
-function toggleDD(e) { e.stopPropagation(); document.getElementById('ddmenu').classList.toggle('show'); }
+function handleDDToggle(e) {
+  e.stopPropagation();
+  checkAuth(() => document.getElementById('ddmenu').classList.toggle('show'));
+}
 function closeDD() { document.getElementById('ddmenu').classList.remove('show'); }
 document.addEventListener('click', e=>{
   if(!e.target.closest('.dropdown')) closeDD();

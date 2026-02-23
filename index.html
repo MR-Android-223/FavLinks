@@ -13,25 +13,15 @@
 <div class="ambient"></div>
 <div class="grain"></div>
 
-<div id="lock-screen" style="display:none;">
-  <div class="lock-orb">🔐</div>
-  <div class="lock-title">التطبيق مقفل</div>
-  <div class="lock-subtitle">أدخل كلمة المرور للمتابعة</div>
-  <input type="password" id="unlock-input" class="lock-input" placeholder="• • • • • •"
-         onkeydown="if(event.key==='Enter')unlockApp()">
-  <button class="lock-btn" onclick="unlockApp()">دخول</button>
-  <div class="lock-err" id="lock-err"></div>
-</div>
-
 <header class="header">
   <div class="header-inner">
     <div class="logo">Vault <span>/ مفضلتي</span></div>
 
-    <button class="hbtn" id="btn-swap" onclick="toggleSwapMode()" title="ترتيب">⇄</button>
-    <button class="hbtn" id="btn-select" onclick="toggleSelectMode()" title="تحديد">✓</button>
+    <button class="hbtn" id="btn-swap" onclick="checkAuth(toggleSwapMode)" title="ترتيب">⇄</button>
+    <button class="hbtn" id="btn-select" onclick="checkAuth(toggleSelectMode)" title="تحديد">✓</button>
 
     <div class="dropdown">
-      <button class="hbtn" onclick="toggleDD(event)"><i class="fas fa-ellipsis-v"></i></button>
+      <button class="hbtn" onclick="handleDDToggle(event)"><i class="fas fa-ellipsis-v"></i></button>
       <div class="ddmenu" id="ddmenu">
         <div class="dditem" onclick="exportData()">
           <i class="fas fa-file-export"></i> <span>تصدير البيانات</span>
@@ -64,8 +54,8 @@
 </main>
 
 <div class="fab-row" id="fab-row">
-  <button class="fab fab-sec" onclick="openAddSection()">＋ قسم</button>
-  <button class="fab fab-main" onclick="openAddLink()">＋ رابط</button>
+  <button class="fab fab-sec" onclick="checkAuth(openAddSection)">＋ قسم</button>
+  <button class="fab fab-main" onclick="checkAuth(openAddLink)">＋ رابط</button>
 </div>
 
 <div class="action-bar" id="action-bar">
@@ -80,6 +70,43 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<div class="overlay center" id="auth-modal">
+  <div class="modal" style="text-align:center;">
+    <div class="lock-orb" style="margin: 0 auto 20px;">🔐</div>
+    <div class="lock-title">إجراء محمي</div>
+    <div class="lock-subtitle">أدخل كلمة المرور للمتابعة</div>
+    <input type="password" id="auth-input" class="lock-input" placeholder="• • • • • •"
+           onkeydown="if(event.key==='Enter')submitAuth()">
+    <button class="lock-btn" onclick="submitAuth()">تأكيد</button>
+    <div class="lock-err" id="auth-err"></div>
+    <button class="cbtn cbtn-cancel" style="margin-top:15px; width:100%" onclick="cancelAuth()">إلغاء</button>
+  </div>
+</div>
+
+<div class="overlay center" id="link-ctx-modal" onclick="overlayClose(event,'link-ctx-modal')">
+  <div class="modal">
+    <div class="modal-title">
+      <span id="link-ctx-name">خيارات الرابط</span>
+      <button class="mclose" onclick="closeModal('link-ctx-modal')">✕</button>
+    </div>
+    <div class="mgroup-list">
+      <div class="mgroup-item" onclick="ctxOpenLink()">
+        <span class="mg-e">🌐</span> فتح
+      </div>
+      <div class="mgroup-item" onclick="ctxCopyLink()">
+        <span class="mg-e">📋</span> نسخ
+      </div>
+      <div class="mgroup-item" onclick="ctxEditLink()">
+        <span class="mg-e">✏️</span> تعديل
+      </div>
+      <div class="mgroup-item" style="color:var(--danger); border-color:rgba(248,113,113,0.15);"
+           onclick="ctxDeleteLink()">
+        <span class="mg-e">🗑</span> حذف
+      </div>
+    </div>
+  </div>
+</div>
 
 <div class="overlay" id="link-modal" onclick="overlayClose(event,'link-modal')">
   <div class="modal">
