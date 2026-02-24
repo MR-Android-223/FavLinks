@@ -724,3 +724,48 @@ function toast(msg, type = 'success') {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
 }
+function openSearchModal() {
+  document.getElementById('inp-search').value = '';
+  document.getElementById('search-results').innerHTML = '';
+  openModal('search-modal');
+  setTimeout(() => document.getElementById('inp-search').focus(), 50);
+}
+
+function performSearch(query) {
+  const resContainer = document.getElementById('search-results');
+  if (!query || query.trim().length === 0) {
+    resContainer.innerHTML = '';
+    return;
+  }
+  
+  const q = query.trim().toLowerCase();
+  let results = [];
+  
+  D.groups.forEach(g => {
+    g.links.forEach(l => {
+      if ((l.name && l.name.toLowerCase().includes(q)) || (l.url && l.url.toLowerCase().includes(q))) {
+        results.push({ link: l, group: g });
+      }
+    });
+  });
+
+  if (results.length === 0) {
+    resContainer.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:var(--text3); margin-top:20px;">لا يوجد نتائج</div>';
+    return;
+  }
+
+  resContainer.innerHTML = results.map(item => {
+    const l = item.link;
+    const fav = getFav(l.url);
+    const init = (l.name || '?')[0].toUpperCase();
+    return `
+      <div class="link-card" onclick="window.open('${l.url}', '_blank')">
+        <div class="link-icon-wrap">
+          <img src="${fav}" alt="${init}" loading="lazy" onerror="if(!this.dataset.fb){this.dataset.fb='1'; this.src='https://icons.duckduckgo.com/ip3/'+new URL('${l.url}').hostname+'.ico';}else{this.parentNode.innerHTML='<span style=font-size:22px;font-weight:900;color:#333>${init}</span>'}">
+        </div>
+        <div class="link-label">${l.name || getDomain(l.url)}</div>
+        <div style="font-size:9px; color:var(--text3); margin-top:4px; opacity:0.8;">📁 ${item.group.name}</div>
+      </div>
+    `;
+  }).join('');
+}

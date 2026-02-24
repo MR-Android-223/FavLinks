@@ -22,7 +22,9 @@
 <header class="header">
   <div class="header-inner">
     <div class="logo">Fav <span>Links</span></div>
-
+<button class="hbtn" onclick="openSearchModal()" title="بحث">
+  <i class="fas fa-search"></i>
+</button>
     <button class="hbtn" id="btn-swap" onclick="checkAuth(toggleSwapMode)" title="ترتيب">⇄</button>
     <button class="hbtn" id="btn-select" onclick="checkAuth(toggleSelectMode)" title="تحديد">✓</button>
 
@@ -243,7 +245,19 @@
     </div>
   </div>
 </div>
-
+<div class="overlay center" id="search-modal" onclick="overlayClose(event,'search-modal')">
+  <div class="modal" style="display:flex; flex-direction:column; max-height:85vh; padding:24px 20px 0px;">
+    <div class="modal-title" style="flex-shrink:0; margin-bottom:15px;">
+      <span>🔍 بحث ذكي</span>
+      <button class="mclose" onclick="closeModal('search-modal')">✕</button>
+    </div>
+    <div style="flex-shrink:0; margin-bottom:15px;">
+      <input type="text" class="finput" id="inp-search" placeholder="اكتب اسم الرابط هنا..." oninput="performSearch(this.value)" autocomplete="off">
+    </div>
+    <div id="search-results" class="links-grid" style="overflow-y:auto; flex-grow:1; padding:5px 4px 24px; align-content:start;">
+    </div>
+  </div>
+</div>
 <script src="script.js"></script>
 </body>
 </html>
