@@ -178,12 +178,12 @@
 </div>
 
 <div class="overlay center" id="move-modal" onclick="overlayClose(event,'move-modal')">
-  <div class="modal">
-    <div class="modal-title">
+  <div class="modal" style="display:flex; flex-direction:column; max-height:80vh; padding:24px 20px 24px;">
+    <div class="modal-title" style="margin-bottom:15px; flex-shrink:0;">
       <span>📦 نقل إلى</span>
       <button class="mclose" onclick="closeModal('move-modal')">✕</button>
     </div>
-    <div class="mgroup-list" id="move-list"></div>
+    <div class="mgroup-list" id="move-list" style="overflow-y:auto; padding-right:5px; flex-grow:1;"></div>
   </div>
 </div>
 

@@ -12,7 +12,8 @@ let selectedGroupId = null;
 let currentSecId = null;
 let editingLinkId = null;
 let openGroupId = null;
-let ignoreNextPop = false; // حل سحري لمنع تعارض زر الرجوع مع فتح النوافذ السريع
+let ignoreNextPop = false; 
+let isFirstRender = true; // متغير جديد لمنع رمشة الأنيميشن المزعجة
 
 const EMOJIS = ['📁','🤖','🎨','🎬','🎵','📸','💻','🌐','🔗','📝','🎮','📊','🛒','💡','🔧','⭐','🚀','📱','🎯','💎'];
 const COLORS = ['#c9a84c','#f87171','#60a5fa','#34d399','#a78bfa','#f472b6','#fb923c','#2dd4bf','#facc15','#94a3b8'];
@@ -87,6 +88,7 @@ function loadAndRender() {
     save();
   }
   render();
+  isFirstRender = false; // نوقف الأنيميشن بعد أول تحميل لمنع الرمشة
 }
 
 function save() { localStorage.setItem('vlt_data', JSON.stringify(D)); }
@@ -112,7 +114,14 @@ function render() {
   D.groups.forEach((g,gi) => {
     const div = document.createElement('div');
     div.className = 'group-wrap';
-    div.style.animationDelay = gi * 0.07 + 's';
+    
+    // تشغيل الأنيميشن أول مرة فقط
+    if (isFirstRender) {
+      div.style.animationDelay = gi * 0.07 + 's';
+    } else {
+      div.style.animation = 'none'; // منع الرمشة
+    }
+    
     div.dataset.gid = g.id;
 
     const isGroupSrc = (swapSrc && swapSrc.type === 'group' && swapSrc.gid === g.id) ? 'swap-src' : '';
@@ -209,10 +218,8 @@ function handleGroupSwap(gid) {
         toast('تم ترتيب المجموعات ✅', 'success');
       }
     }
-    swapSrc = null; swapMode = false;
-    document.getElementById('btn-swap').classList.remove('active-swap');
-    document.getElementById('swap-banner').classList.remove('show');
-    document.getElementById('fab-row').classList.remove('hidden');
+    swapSrc = null; 
+    // ترك وضع الترتيب شغال بناء على طلبك
     render();
   }
 }
@@ -341,10 +348,8 @@ function cardClick(e, el) {
           toast('تم الترتيب ✅', 'success');
         }
       }
-      swapSrc = null; swapMode = false;
-      document.getElementById('btn-swap').classList.remove('active-swap');
-      document.getElementById('swap-banner').classList.remove('show');
-      document.getElementById('fab-row').classList.remove('hidden');
+      swapSrc = null; 
+      // ترك وضع الترتيب شغال بناء على طلبك
       render();
     }
     return;
@@ -505,8 +510,8 @@ function openAddSection(fromLink=false) {
   openModal('section-modal');
 }
 function editSection(gid) {
-  const g=D.groups.find(x=>x.id===gid); if(!g) return;
   closeModal('sec-ctx-modal');
+  const g=D.groups.find(x=>x.id===gid); if(!g) return;
   secEmoji=g.emoji; secColor=g.color;
   document.getElementById('inp-sec-name').value=g.name;
   document.getElementById('sec-modal-title').textContent='✏️ تعديل القسم';
@@ -645,7 +650,15 @@ function closeModal(id, fromHistory = false) {
   const el = document.getElementById(id);
   if (el.classList.contains('show')) {
     el.classList.remove('show');
-    if (id === 'group-view-modal') openGroupId = null;
+    
+    if (id === 'group-view-modal') {
+      openGroupId = null;
+      if (swapMode && swapSrc && swapSrc.type === 'link') {
+          swapSrc = null;
+          render();
+      }
+    }
+    
     if (!fromHistory && history.state && history.state.modalId === id) {
       ignoreNextPop = true; // منع التعارض مع زر الرجوع
       history.back();
