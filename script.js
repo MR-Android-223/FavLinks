@@ -733,7 +733,7 @@ function openSearchModal() {
 
 function performSearch(query) {
   const resContainer = document.getElementById('search-results');
-  if (!query || query.trim().length === 0) {
+  if (!query || query.trim() === '') {
     resContainer.innerHTML = '';
     return;
   }
@@ -743,7 +743,9 @@ function performSearch(query) {
   
   D.groups.forEach(g => {
     g.links.forEach(l => {
-      if ((l.name && l.name.toLowerCase().includes(q)) || (l.url && l.url.toLowerCase().includes(q))) {
+      const lName = l.name ? String(l.name).toLowerCase() : '';
+      const lUrl = l.url ? String(l.url).toLowerCase() : '';
+      if (lName.includes(q) || lUrl.includes(q)) {
         results.push({ link: l, group: g });
       }
     });
@@ -758,12 +760,14 @@ function performSearch(query) {
     const l = item.link;
     const fav = getFav(l.url);
     const init = (l.name || '?')[0].toUpperCase();
+    const domain = getDomain(l.url);
+    
     return `
       <div class="link-card" onclick="window.open('${l.url}', '_blank')">
         <div class="link-icon-wrap">
-          <img src="${fav}" alt="${init}" loading="lazy" onerror="if(!this.dataset.fb){this.dataset.fb='1'; this.src='https://icons.duckduckgo.com/ip3/'+new URL('${l.url}').hostname+'.ico';}else{this.parentNode.innerHTML='<span style=font-size:22px;font-weight:900;color:#333>${init}</span>'}">
+          <img src="${fav}" alt="${init}" loading="lazy" onerror="if(!this.dataset.fb){this.dataset.fb='1'; this.src='https://icons.duckduckgo.com/ip3/${domain}.ico';}else{this.parentNode.innerHTML='<span style=font-size:22px;font-weight:900;color:#333>${init}</span>'}">
         </div>
-        <div class="link-label">${l.name || getDomain(l.url)}</div>
+        <div class="link-label">${l.name || domain}</div>
         <div style="font-size:9px; color:var(--text3); margin-top:4px; opacity:0.8;">📁 ${item.group.name}</div>
       </div>
     `;
