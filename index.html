@@ -125,75 +125,79 @@
   </div>
 </div>
 
-<div class="overlay" id="link-modal" onclick="overlayClose(event,'link-modal')">
-  <div class="modal">
-    <div class="modal-title">
+<div class="overlay center" id="link-modal" onclick="overlayClose(event,'link-modal')">
+  <div class="modal" style="display:flex; flex-direction:column; max-height:85vh; padding:24px 20px 0px;">
+    <div class="modal-title" style="flex-shrink:0; margin-bottom:15px;">
       <span id="link-modal-title">➕ إضافة رابط</span>
       <button class="mclose" onclick="closeModal('link-modal')">✕</button>
     </div>
 
-    <label class="flabel">الرابط</label>
-    <input type="url" class="finput" id="inp-url" placeholder="https://example.com"
-           oninput="previewURL(this.value)">
+    <div style="overflow-y:auto; flex-grow:1; padding:5px 4px 24px;">
+      <label class="flabel">الرابط</label>
+      <input type="url" class="finput" id="inp-url" placeholder="https://example.com"
+             oninput="previewURL(this.value)">
 
-    <div class="url-preview" id="url-prev">
-      <div class="uprev-icon"><img id="uprev-img" src="" alt=""></div>
-      <div>
-        <div class="uprev-domain" id="uprev-domain"></div>
-        <div class="uprev-full" id="uprev-full"></div>
+      <div class="url-preview" id="url-prev">
+        <div class="uprev-icon"><img id="uprev-img" src="" alt=""></div>
+        <div>
+          <div class="uprev-domain" id="uprev-domain"></div>
+          <div class="uprev-full" id="uprev-full"></div>
+        </div>
       </div>
+
+      <label class="flabel">الاسم</label>
+      <input type="text" class="finput" id="inp-name" placeholder="اسم الرابط...">
+
+      <label class="flabel">القسم</label>
+      <div class="group-chips" id="group-chips-list" style="max-height:none; overflow:visible;"></div>
+      <button class="gchip new-chip" onclick="openAddSection(true)" style="width:100%;margin-bottom:16px;">
+        ＋ قسم جديد
+      </button>
+
+      <button class="msave" style="margin-top:10px;" onclick="saveLink()">حفظ الرابط</button>
     </div>
-
-    <label class="flabel">الاسم</label>
-    <input type="text" class="finput" id="inp-name" placeholder="اسم الرابط...">
-
-    <label class="flabel">القسم</label>
-    <div class="group-chips" id="group-chips-list"></div>
-    <button class="gchip new-chip" onclick="openAddSection(true)" style="width:100%;margin-bottom:16px;">
-      ＋ قسم جديد
-    </button>
-
-    <button class="msave" onclick="saveLink()">حفظ الرابط</button>
   </div>
 </div>
 
-<div class="overlay" id="section-modal" onclick="overlayClose(event,'section-modal')">
-  <div class="modal">
-    <div class="modal-title">
+<div class="overlay center" id="section-modal" onclick="overlayClose(event,'section-modal')">
+  <div class="modal" style="display:flex; flex-direction:column; max-height:85vh; padding:24px 20px 0px;">
+    <div class="modal-title" style="flex-shrink:0; margin-bottom:15px;">
       <span id="sec-modal-title">📁 قسم جديد</span>
       <button class="mclose" onclick="closeModal('section-modal')">✕</button>
     </div>
 
-    <label class="flabel">اسم القسم</label>
-    <input type="text" class="finput" id="inp-sec-name" placeholder="مثال: أدوات الذكاء الاصطناعي">
+    <div style="overflow-y:auto; flex-grow:1; padding:5px 4px 24px;">
+      <label class="flabel">اسم القسم</label>
+      <input type="text" class="finput" id="inp-sec-name" placeholder="مثال: أدوات الذكاء الاصطناعي">
 
-    <label class="flabel">أيقونة</label>
-    <div class="emoji-row" id="emoji-picker"></div>
+      <label class="flabel">أيقونة</label>
+      <div class="emoji-row" id="emoji-picker"></div>
 
-    <label class="flabel">لون</label>
-    <div class="color-row" id="color-picker"></div>
+      <label class="flabel">لون</label>
+      <div class="color-row" id="color-picker"></div>
 
-    <button class="msave" id="sec-save-btn" onclick="saveSection()">إنشاء القسم</button>
+      <button class="msave" id="sec-save-btn" style="margin-top:10px;" onclick="saveSection()">إنشاء القسم</button>
+    </div>
   </div>
 </div>
 
 <div class="overlay center" id="move-modal" onclick="overlayClose(event,'move-modal')">
-  <div class="modal" style="display:flex; flex-direction:column; max-height:80vh; padding:24px 20px 24px;">
+  <div class="modal" style="display:flex; flex-direction:column; height:80vh; max-height:80vh; padding:24px 20px 0px;">
     <div class="modal-title" style="margin-bottom:15px; flex-shrink:0;">
       <span>📦 نقل إلى</span>
       <button class="mclose" onclick="closeModal('move-modal')">✕</button>
     </div>
-    <div class="mgroup-list" id="move-list" style="overflow-y:auto; padding-right:5px; flex-grow:1;"></div>
+    <div class="mgroup-list" id="move-list" style="overflow-y:auto; padding-right:5px; flex-grow:1; padding-bottom: 70px;"></div>
   </div>
 </div>
 
-<div class="overlay" id="pass-modal" onclick="overlayClose(event,'pass-modal')">
-  <div class="modal">
-    <div class="modal-title">
+<div class="overlay center" id="pass-modal" onclick="overlayClose(event,'pass-modal')">
+  <div class="modal" style="display:flex; flex-direction:column; max-height:85vh; padding:24px 20px 0px;">
+    <div class="modal-title" style="flex-shrink:0; margin-bottom:15px;">
       <span id="pass-modal-title">🔑 كلمة المرور</span>
       <button class="mclose" onclick="closeModal('pass-modal')">✕</button>
     </div>
-    <div id="pass-form">
+    <div id="pass-form" style="overflow-y:auto; flex-grow:1; padding:5px 4px 24px;">
       <div id="pass-old-wrap" style="display:none;">
         <label class="flabel">كلمة المرور الحالية</label>
         <input type="password" class="finput" id="inp-old-pass" placeholder="كلمة المرور الحالية">
@@ -205,7 +209,7 @@
       <div id="pass-rm-wrap" style="display:none; margin-bottom:12px;">
         <button class="pass-rm" onclick="removePassword()">🗑 إزالة كلمة المرور</button>
       </div>
-      <button class="msave" onclick="savePassword()">حفظ</button>
+      <button class="msave" style="margin-top:10px;" onclick="savePassword()">حفظ</button>
     </div>
   </div>
 </div>

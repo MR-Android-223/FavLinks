@@ -13,7 +13,7 @@ let currentSecId = null;
 let editingLinkId = null;
 let openGroupId = null;
 let ignoreNextPop = false; 
-let isFirstRender = true; // متغير جديد لمنع رمشة الأنيميشن المزعجة
+let isFirstRender = true; 
 
 const EMOJIS = ['📁','🤖','🎨','🎬','🎵','📸','💻','🌐','🔗','📝','🎮','📊','🛒','💡','🔧','⭐','🚀','📱','🎯','💎'];
 const COLORS = ['#c9a84c','#f87171','#60a5fa','#34d399','#a78bfa','#f472b6','#fb923c','#2dd4bf','#facc15','#94a3b8'];
@@ -60,13 +60,14 @@ function cancelAuth() {
 }
 
 function reqEditLink() {
+  // استخدام التايمر لمنع تصادم النوافذ وحل مشكلة عدم الاستجابة
   closeModal('link-ctx-modal');
-  checkAuth(ctxEditLink);
+  setTimeout(() => checkAuth(ctxEditLink), 50);
 }
 
 function reqDeleteLink() {
   closeModal('link-ctx-modal');
-  checkAuth(ctxDeleteLink);
+  setTimeout(() => checkAuth(ctxDeleteLink), 50);
 }
 
 /* ── init ── */
@@ -88,7 +89,7 @@ function loadAndRender() {
     save();
   }
   render();
-  isFirstRender = false; // نوقف الأنيميشن بعد أول تحميل لمنع الرمشة
+  isFirstRender = false; 
 }
 
 function save() { localStorage.setItem('vlt_data', JSON.stringify(D)); }
@@ -115,11 +116,10 @@ function render() {
     const div = document.createElement('div');
     div.className = 'group-wrap';
     
-    // تشغيل الأنيميشن أول مرة فقط
     if (isFirstRender) {
       div.style.animationDelay = gi * 0.07 + 's';
     } else {
-      div.style.animation = 'none'; // منع الرمشة
+      div.style.animation = 'none'; 
     }
     
     div.dataset.gid = g.id;
@@ -211,15 +211,14 @@ function handleGroupSwap(gid) {
       const idx1 = D.groups.findIndex(gx => gx.id === swapSrc.gid);
       const idx2 = D.groups.findIndex(gx => gx.id === gid);
       if(idx1 > -1 && idx2 > -1) {
-        const temp = D.groups[idx1];
-        D.groups[idx1] = D.groups[idx2];
-        D.groups[idx2] = temp;
+        // استخدام خوارزمية الإزاحة بدل التبديل المباشر
+        const srcGroup = D.groups.splice(idx1, 1)[0];
+        D.groups.splice(idx2, 0, srcGroup);
         save();
-        toast('تم ترتيب المجموعات ✅', 'success');
+        toast('تم الترتيب ✅', 'success');
       }
     }
     swapSrc = null; 
-    // ترك وضع الترتيب شغال بناء على طلبك
     render();
   }
 }
@@ -341,15 +340,14 @@ function cardClick(e, el) {
         const i1 = g1.links.findIndex(lx=>lx.id===swapSrc.lid);
         const i2 = g2.links.findIndex(lx=>lx.id===lid);
         if(i1 > -1 && i2 > -1){ 
-          const t = g1.links[i1]; 
-          g1.links[i1] = g2.links[i2]; 
-          g2.links[i2] = t; 
+          // خوارزمية الإزاحة للروابط كمان
+          const srcLink = g1.links.splice(i1, 1)[0];
+          g2.links.splice(i2, 0, srcLink);
           save(); 
           toast('تم الترتيب ✅', 'success');
         }
       }
       swapSrc = null; 
-      // ترك وضع الترتيب شغال بناء على طلبك
       render();
     }
     return;
@@ -511,14 +509,16 @@ function openAddSection(fromLink=false) {
 }
 function editSection(gid) {
   closeModal('sec-ctx-modal');
-  const g=D.groups.find(x=>x.id===gid); if(!g) return;
-  secEmoji=g.emoji; secColor=g.color;
-  document.getElementById('inp-sec-name').value=g.name;
-  document.getElementById('sec-modal-title').textContent='✏️ تعديل القسم';
-  document.getElementById('sec-save-btn').textContent='حفظ التعديلات';
-  document.getElementById('sec-save-btn').onclick=()=>updateSection(gid);
-  renderEmojiPicker(); renderColorPicker();
-  openModal('section-modal');
+  setTimeout(() => {
+      const g=D.groups.find(x=>x.id===gid); if(!g) return;
+      secEmoji=g.emoji; secColor=g.color;
+      document.getElementById('inp-sec-name').value=g.name;
+      document.getElementById('sec-modal-title').textContent='✏️ تعديل القسم';
+      document.getElementById('sec-save-btn').textContent='حفظ التعديلات';
+      document.getElementById('sec-save-btn').onclick=()=>updateSection(gid);
+      renderEmojiPicker(); renderColorPicker();
+      openModal('section-modal');
+  }, 50);
 }
 function updateSection(gid) {
   const g=D.groups.find(x=>x.id===gid);
@@ -562,12 +562,14 @@ function openSecCtx(gid) {
 }
 function askDeleteSection(gid) {
   closeModal('sec-ctx-modal');
-  const g=D.groups.find(x=>x.id===gid);
-  confirm2('🗑','حذف القسم',`هل تريد حذف "${g.name}"؟\nالروابط لن تُحذف.`,'danger',()=>{
-    D.groups=D.groups.filter(x=>x.id!==gid);
-    if(openGroupId === gid) closeModal('group-view-modal');
-    save(); render(); toast('تم الحذف ✅', 'success');
-  });
+  setTimeout(() => {
+      const g=D.groups.find(x=>x.id===gid);
+      confirm2('🗑','حذف القسم',`هل تريد حذف "${g.name}"؟\nالروابط لن تُحذف.`,'danger',()=>{
+        D.groups=D.groups.filter(x=>x.id!==gid);
+        if(openGroupId === gid) closeModal('group-view-modal');
+        save(); render(); toast('تم الحذف ✅', 'success');
+      });
+  }, 50);
 }
 
 /* ── password ── */
@@ -637,12 +639,13 @@ function askClearData() {
   });
 }
 
-/* ── modal helpers و زر الرجوع ── */
+/* ── modal helpers و قفل الخلفية ── */
 function openModal(id) {
   const el = document.getElementById(id);
   if (!el.classList.contains('show')) {
     el.classList.add('show');
     history.pushState({ modalId: id }, null, window.location.href);
+    document.body.style.overflow = 'hidden'; // قفل سحب الخلفية
   }
 }
 
@@ -651,6 +654,10 @@ function closeModal(id, fromHistory = false) {
   if (el.classList.contains('show')) {
     el.classList.remove('show');
     
+    if (document.querySelectorAll('.overlay.show').length === 0) {
+      document.body.style.overflow = ''; // فك قفل سحب الخلفية
+    }
+
     if (id === 'group-view-modal') {
       openGroupId = null;
       if (swapMode && swapSrc && swapSrc.type === 'link') {
@@ -660,7 +667,7 @@ function closeModal(id, fromHistory = false) {
     }
     
     if (!fromHistory && history.state && history.state.modalId === id) {
-      ignoreNextPop = true; // منع التعارض مع زر الرجوع
+      ignoreNextPop = true; 
       history.back();
     }
   }
@@ -677,7 +684,6 @@ window.addEventListener('popstate', (e) => {
   }
   const activeModals = document.querySelectorAll('.overlay.show');
   if (activeModals.length > 0) {
-    // إغلاق آخر نافذة مفتوحة فقط
     const lastModal = activeModals[activeModals.length - 1];
     closeModal(lastModal.id, true);
   }

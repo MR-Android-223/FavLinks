@@ -104,7 +104,7 @@ input, textarea {
   box-shadow:0 4px 32px rgba(0,0,0,0.4), 0 1px 0 rgba(255,255,255,0.04) inset;
 }
 .logo {
-  font-size:18px; font-weight:900; letter-spacing:0.5px;
+  font-size:19px; font-weight:900; letter-spacing:0.5px;
   background:linear-gradient(135deg,var(--gold2),var(--gold));
   -webkit-background-clip:text; -webkit-text-fill-color:transparent;
   flex:1;
@@ -438,7 +438,7 @@ main {
   will-change: transform, opacity;
 }
 .overlay.center .modal {
-  border-radius:24px; overflow-y:auto; overflow-x:hidden;
+  border-radius:24px; overflow-y:hidden; overflow-x:hidden;
   animation: smoothDropFade 0.2s ease-out forwards;
 }
 
@@ -503,11 +503,8 @@ main {
 .uprev-domain { font-size:13px; font-weight:600; color:var(--text); }
 .uprev-full { font-size:11px; color:var(--text3); margin-top:2px; word-break:break-all; }
 
-/* group chips for link modal - تحديد الطول لمنع اختفاء الخانات العلوية */
-.group-chips { 
-  display:flex; flex-direction:column; gap:8px; margin-bottom:16px; 
-  max-height: 180px; overflow-y: auto; padding-right: 6px;
-}
+/* group chips for link modal */
+.group-chips { display:flex; flex-direction:column; gap:8px; margin-bottom:16px; }
 .gchip {
   padding:11px 14px; border-radius:var(--r-sm);
   background:var(--s2); border:1px solid var(--border);
