@@ -643,6 +643,11 @@ function askClearData() {
 function openModal(id) {
   const el = document.getElementById(id);
   if (!el.classList.contains('show')) {
+    
+    // السطرين هدول لرفع النافذة الجديدة فوق أي نافذة مفتوحة قبلها
+    const activeCount = document.querySelectorAll('.overlay.show').length;
+    el.style.zIndex = 1000 + activeCount;
+    
     el.classList.add('show');
     history.pushState({ modalId: id }, null, window.location.href);
     document.body.style.overflow = 'hidden'; // قفل سحب الخلفية
@@ -763,7 +768,18 @@ function performSearch(query) {
     const domain = getDomain(l.url);
     
     return `
-      <div class="link-card" onclick="window.open('${l.url}', '_blank')">
+      <div class="link-card" 
+           data-gid="${item.group.id}" 
+           data-lid="${l.id}" 
+           data-url="${l.url}"
+           onmousedown="handleTouchStart(event, this)"
+           onmouseup="handleTouchEnd()"
+           onmouseleave="handleTouchEnd()"
+           ontouchstart="handleTouchStart(event, this)"
+           ontouchend="handleTouchEnd()"
+           ontouchmove="handleTouchMove()"
+           oncontextmenu="handleContextMenu(event, this)"
+           onclick="cardClick(event,this)">
         <div class="link-icon-wrap">
           <img src="${fav}" alt="${init}" loading="lazy" onerror="if(!this.dataset.fb){this.dataset.fb='1'; this.src='https://icons.duckduckgo.com/ip3/${domain}.ico';}else{this.parentNode.innerHTML='<span style=font-size:22px;font-weight:900;color:#333>${init}</span>'}">
         </div>
