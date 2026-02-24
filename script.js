@@ -12,6 +12,7 @@ let selectedGroupId = null;
 let currentSecId = null;
 let editingLinkId = null;
 let openGroupId = null;
+let ignoreNextPop = false; // حل سحري لمنع تعارض زر الرجوع مع فتح النوافذ السريع
 
 const EMOJIS = ['📁','🤖','🎨','🎬','🎵','📸','💻','🌐','🔗','📝','🎮','📊','🛒','💡','🔧','⭐','🚀','📱','🎯','💎'];
 const COLORS = ['#c9a84c','#f87171','#60a5fa','#34d399','#a78bfa','#f472b6','#fb923c','#2dd4bf','#facc15','#94a3b8'];
@@ -144,8 +145,11 @@ function openGroupView(gid) {
   document.getElementById('gv-title').innerHTML = `<span style="margin-left:8px; font-size:24px;">${g.emoji}</span> ${g.name}`;
   renderGroupViewLinks(gid);
 
-  // نفتح النافذة مباشرة بدون تأخير لأن الغبش انحذف وصارت خفيفة جداً
-  openModal('group-view-modal');
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      openModal('group-view-modal');
+    });
+  });
 }
 
 function renderGroupViewLinks(gid) {
@@ -494,6 +498,7 @@ function openAddSection(fromLink=false) {
   secEmoji='📁'; secColor='#c9a84c';
   document.getElementById('inp-sec-name').value='';
   document.getElementById('sec-modal-title').textContent='📁 قسم جديد';
+  document.getElementById('sec-save-btn').textContent='إنشاء القسم';
   document.getElementById('sec-save-btn').onclick=saveSection;
   renderEmojiPicker(); renderColorPicker();
   if(fromLink) closeModal('link-modal');
@@ -505,6 +510,7 @@ function editSection(gid) {
   secEmoji=g.emoji; secColor=g.color;
   document.getElementById('inp-sec-name').value=g.name;
   document.getElementById('sec-modal-title').textContent='✏️ تعديل القسم';
+  document.getElementById('sec-save-btn').textContent='حفظ التعديلات';
   document.getElementById('sec-save-btn').onclick=()=>updateSection(gid);
   renderEmojiPicker(); renderColorPicker();
   openModal('section-modal');
@@ -641,6 +647,7 @@ function closeModal(id, fromHistory = false) {
     el.classList.remove('show');
     if (id === 'group-view-modal') openGroupId = null;
     if (!fromHistory && history.state && history.state.modalId === id) {
+      ignoreNextPop = true; // منع التعارض مع زر الرجوع
       history.back();
     }
   }
@@ -651,12 +658,15 @@ function overlayClose(e,id) {
 }
 
 window.addEventListener('popstate', (e) => {
+  if (ignoreNextPop) {
+    ignoreNextPop = false;
+    return;
+  }
   const activeModals = document.querySelectorAll('.overlay.show');
   if (activeModals.length > 0) {
-    activeModals.forEach(m => {
-      m.classList.remove('show');
-      if (m.id === 'group-view-modal') openGroupId = null;
-    });
+    // إغلاق آخر نافذة مفتوحة فقط
+    const lastModal = activeModals[activeModals.length - 1];
+    closeModal(lastModal.id, true);
   }
 });
 
